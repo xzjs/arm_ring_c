@@ -1,9 +1,8 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <math.h>
 
 const int SUM_DATA_LEN = 50;
-const int COL = 7;
+const int COL = 8;
 const int SUM_DATA_AVG_THRESHOLD = 5000;
 const int WINDOW_SIZE_TRAIN = 40;
 const double RATE_TRAIN = 0.8;
@@ -28,8 +27,6 @@ struct data
     int index;              // 更新数据的索引
     double arr[TOTAL][COL]; // 存储数据的数组
 } DATA;                     // 存储接收到的数据
-
-MATRIX res[6]; // 训练存储数组
 
 /**
  * np.mean
@@ -114,7 +111,7 @@ MATRIX processing_data(double *arr)
 /**
  * 循环更新DATA数组
  */
-int update_data(int received_data[COL])
+void update_data(int received_data[COL])
 {
     if (DATA.row < TOTAL)
     {
@@ -129,27 +126,6 @@ int update_data(int received_data[COL])
     {
         DATA.arr[DATA.index][i] = (double)received_data[i];
     }
-}
-
-/**
- * 动作校准函数
- * received_data 2000*7的向量
- * 返回向量1*7或0*7的向量
- */
-int action_calibration(int action_id, int received_data[7])
-{
-    update_data(received_data);
-    if (DATA.row <= TOTAL)
-    {
-        return 0;
-    }
-    MATRIX m = processing_data(DATA.arr);
-    if (m.row == 0)
-    {
-        return 0;
-    }
-    res[action_id] = mean(m);
-    return 1;
 }
 
 // 计算向量的模
@@ -190,7 +166,7 @@ double cosine_similarity(double *vector1, double *vector2, int size)
     return dot / (magnitude1 * magnitude2);
 }
 
-SIMILARITY action_test(int received_data[7])
+SIMILARITY action_test(int res[][COL], int received_data[7])
 {
     SIMILARITY similarity = {-1, -1};
     update_data(received_data);
@@ -198,7 +174,7 @@ SIMILARITY action_test(int received_data[7])
     {
         return similarity;
     }
-    MATRIX m = processing_data(DATA.arr);
+    MATRIX m = processing_data((double *)DATA.arr);
     if (m.row == 0)
     {
         return similarity;
@@ -208,7 +184,12 @@ SIMILARITY action_test(int received_data[7])
     int max = 0;
     for (int i = 0; i < 6; i++)
     {
-        sim[i] = cosine_similarity(res[i].array, test.array, COL);
+        int _res[COL];
+        for(int j=0;j<COL;j++)
+        {
+            _res[j]=res[i][j];
+        }
+        sim[i] = cosine_similarity(_res, test.array, COL);
         if (sim[i] > sim[max])
         {
             max = i;
