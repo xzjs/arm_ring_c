@@ -1,4 +1,7 @@
 /.vscode
-/tool
-/tool.dSYM
 /ui4-cos相似度 copy.py
+.DS_Store
+main.dSYM/
+.gitignore
+main
+tool

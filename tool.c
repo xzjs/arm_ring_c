@@ -1,32 +1,6 @@
 #include <stdio.h>
 #include <math.h>
-
-const int SUM_DATA_LEN = 50;
-const int COL = 8;
-const int SUM_DATA_AVG_THRESHOLD = 5000;
-const int WINDOW_SIZE_TRAIN = 40;
-const double RATE_TRAIN = 0.8;
-const int TOTAL = 2000;
-
-typedef struct matrix
-{
-    double *array;
-    int row;
-    int col;
-} MATRIX; // 矩阵
-
-typedef struct similarity
-{
-    int action_id;         // 动作id
-    double max_similarity; // 最大相似度
-} SIMILARITY;              // 相似度
-
-struct data
-{
-    int row;                // 当前行数
-    int index;              // 更新数据的索引
-    double arr[TOTAL][COL]; // 存储数据的数组
-} DATA;                     // 存储接收到的数据
+#include "tool.h"
 
 /**
  * np.mean
@@ -40,7 +14,7 @@ MATRIX mean(MATRIX array)
         double sum = 0;
         for (int i = 0; i < array.row; i++)
         {
-            sum += array.array[i * array.row + j];
+            sum += array.array[i * array.col + j];
         }
         avg[j] = sum / array.row;
     }
@@ -67,8 +41,8 @@ double sum_average(MATRIX m)
 
 /**
  * 处理数据
- * m 2000*7的矩阵
- * 将2000*7的向量50一组压缩成40*7的向量
+ * m 1000*7的矩阵
+ * 将1000*7的向量50一组压缩成20*7的向量
  * 判断最后剩余的向量是否低于阈值
  * 若低于阈值，返回的结构体row为0
  * 否则即为可用的矩阵
@@ -77,16 +51,20 @@ MATRIX processing_data(double *arr)
 {
     int index = 0;
     double temp[SUM_DATA_LEN][COL];
-    MATRIX result;
+    double result_array[WINDOW_SIZE_TRAIN][COL];
+    MATRIX result = {
+        (double *)result_array,
+        0,
+        COL};
     while (index < TOTAL)
     {
         double sum = 0;
         for (int i = 0; i < SUM_DATA_LEN; i++)
         {
-            for (int j = 0; i < COL; j++)
+            for (int j = 0; j < COL; j++)
             {
                 temp[i][j] = arr[index];
-                sum += arr[index];
+                sum += arr[index++];
             }
         }
         double avg = sum / SUM_DATA_LEN;
@@ -113,18 +91,18 @@ MATRIX processing_data(double *arr)
  */
 void update_data(int received_data[COL])
 {
-    if (DATA.row < TOTAL)
+    for (int i = 0; i < COL; i++)
+    {
+        DATA.arr[DATA.index][i] = (double)received_data[i];
+    }
+    if (DATA.row < ROW)
     {
         DATA.row++;
     }
     DATA.index++;
-    if (DATA.index == TOTAL)
+    if (DATA.index == ROW)
     {
         DATA.index = 0;
-    }
-    for (int i = 0; i < COL; i++)
-    {
-        DATA.arr[DATA.index][i] = (double)received_data[i];
     }
 }
 
@@ -166,11 +144,11 @@ double cosine_similarity(double *vector1, double *vector2, int size)
     return dot / (magnitude1 * magnitude2);
 }
 
-SIMILARITY action_test(int res[][COL], int received_data[7])
+SIMILARITY action_test(double res[][COL], int received_data[COL])
 {
     SIMILARITY similarity = {-1, -1};
     update_data(received_data);
-    if (DATA.row <= TOTAL)
+    if (DATA.row < ROW)
     {
         return similarity;
     }
@@ -184,12 +162,12 @@ SIMILARITY action_test(int res[][COL], int received_data[7])
     int max = 0;
     for (int i = 0; i < 6; i++)
     {
-        int _res[COL];
-        for(int j=0;j<COL;j++)
+        double res1[COL];
+        for (int j = 0; j < COL; j++)
         {
-            _res[j]=res[i][j];
+            res1[j] = res[i][j];
         }
-        sim[i] = cosine_similarity(_res, test.array, COL);
+        sim[i] = cosine_similarity(res1, test.array, COL);
         if (sim[i] > sim[max])
         {
             max = i;
@@ -198,17 +176,4 @@ SIMILARITY action_test(int res[][COL], int received_data[7])
     similarity.action_id = max;
     similarity.max_similarity = sim[max];
     return similarity;
-}
-
-int main()
-{
-    double arr[2][2] = {{1, 2},
-                        {3, 4}};
-    MATRIX m = {(double *)arr, 2, 2};
-    MATRIX result = mean(m);
-    for (int i = 0; i < 2; i++)
-    {
-        printf("%f\n", result.array[i]);
-    }
-    return 0;
 }
