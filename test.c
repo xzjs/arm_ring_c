@@ -37,7 +37,7 @@ int main()
 
     while (fgets(line, sizeof(line), file) != NULL)
     {
-        printf("file %d \n", now++);
+        // printf("file %d \n", now++);
         // 从文件中读取一行数据
         // 使用strtok函数按逗号分隔字符串
         token = strtok(line, delimiter);
@@ -50,9 +50,7 @@ int main()
         SIMILARITY sim = action_test(res, vector);
         if (sim.action_id >= 0)
         {
-            printf("%d,%f", sim.action_id, sim.max_similarity);
-            DATA.index = 0;
-            DATA.row = 0;
+            printf("%d,%f\n", sim.action_id, sim.max_similarity);
         }
     }
 

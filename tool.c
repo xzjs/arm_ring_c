@@ -2,109 +2,11 @@
 #include <math.h>
 #include "tool.h"
 
-/**
- * np.mean
- * array 矩阵结构体
- */
-MATRIX mean(MATRIX array)
-{
-    static double avg[COL] = {0};
-    for (int j = 0; j < array.col; j++)
-    {
-        double sum = 0;
-        for (int i = 0; i < array.row; i++)
-        {
-            sum += array.array[i * array.col + j];
-        }
-        avg[j] = sum / array.row;
-    }
-    MATRIX m =
-        {
-            avg,
-            1,
-            COL};
-    return m;
-}
-
-/**
- * 求每个向量和，再拿和求平均
- */
-double sum_average(MATRIX m)
-{
-    double sum = 0;
-    for (int i = 0; i < m.col * m.row; i++)
-    {
-        sum += m.array[i];
-    }
-    return sum / m.row;
-}
-
-/**
- * 处理数据
- * m 1000*7的矩阵
- * 将1000*7的向量50一组压缩成20*7的向量
- * 判断最后剩余的向量是否低于阈值
- * 若低于阈值，返回的结构体row为0
- * 否则即为可用的矩阵
- */
-MATRIX processing_data(double *arr)
-{
-    int index = 0;
-    double temp[SUM_DATA_LEN][COL];
-    double result_array[WINDOW_SIZE_TRAIN][COL];
-    MATRIX result = {
-        (double *)result_array,
-        0,
-        COL};
-    while (index < TOTAL)
-    {
-        double sum = 0;
-        for (int i = 0; i < SUM_DATA_LEN; i++)
-        {
-            for (int j = 0; j < COL; j++)
-            {
-                temp[i][j] = arr[index];
-                sum += arr[index++];
-            }
-        }
-        double avg = sum / SUM_DATA_LEN;
-        if (avg > SUM_DATA_AVG_THRESHOLD)
-        {
-            MATRIX m_50_7 = {(double *)temp, SUM_DATA_LEN, COL};
-            MATRIX m_1_7 = mean(m_50_7);
-            for (int j = 0; j < COL; j++)
-            {
-                result.array[result.row * COL + j] = m_1_7.array[j];
-            }
-            result.row++;
-        }
-    }
-    if (result.row < WINDOW_SIZE_TRAIN * RATE_TRAIN)
-    {
-        result.row = 0;
-    }
-    return result;
-}
-
-/**
- * 循环更新DATA数组
- */
-void update_data(int received_data[COL])
-{
-    for (int i = 0; i < COL; i++)
-    {
-        DATA.arr[DATA.index][i] = (double)received_data[i];
-    }
-    if (DATA.row < ROW)
-    {
-        DATA.row++;
-    }
-    DATA.index++;
-    if (DATA.index == ROW)
-    {
-        DATA.index = 0;
-    }
-}
+double input[SUM_DATA_LEN][COL];     // 存储输入的数组
+int input_index = 0;                 // 输入数组的索引
+double m_50[WINDOW_SIZE_TRAIN][COL]; // 存储压缩后的向量
+int m_50_size = 0;                   // 存储压缩后的向量的大小
+int m_50_index = 0;                  // 存储压缩后的向量的索引
 
 // 计算向量的模
 double vector_magnitude(double *vector, int size)
@@ -144,36 +46,123 @@ double cosine_similarity(double *vector1, double *vector2, int size)
     return dot / (magnitude1 * magnitude2);
 }
 
+// 二维数组竖向求平均，返回一维数组
+double *vertical_average(double *arr, int row, int col)
+{
+    static double result[COL];
+    for (int i = 0; i < row; i++)
+    {
+        for (int j = 0; j < col; j++)
+        {
+            result[j] += arr[i * col + j] / row;
+        }
+    }
+    return result;
+}
+
+// 一维数组求和
+double sum(double *arr, int size)
+{
+    double sum = 0.0;
+    for (int i = 0; i < size; i++)
+    {
+        sum += arr[i];
+    }
+    return sum;
+}
+
+// 统计二维数组的非零行
+int count_non_zero_row(double *arr, int row, int col)
+{
+    int count = 0;
+    for (int i = 0; i < row; i++)
+    {
+        for (int j = 0; j < col; j++)
+        {
+            if (arr[i * col + j] != 0.0)
+            {
+                count++;
+                break;
+            }
+        }
+    }
+    return count;
+}
+
+/**
+ * @brief 动作测试函数
+ *
+ * @param res 输入的矩阵数据
+ * @param received_data 接收到的数据
+ * @return SIMILARITY 返回动作相似度
+ */
 SIMILARITY action_test(double res[][COL], int received_data[COL])
 {
-    SIMILARITY similarity = {-1, -1};
-    update_data(received_data);
-    if (DATA.row < ROW)
+    SIMILARITY similarity = {-1, -1}; // 初始化相似度为{-1, -1}
+
+    // 存储输入数据,只存储50条数据
+    for (int i = 0; i < COL; i++)
+    {
+        input[input_index][i] = received_data[i];
+    }
+    if (++input_index == SUM_DATA_LEN)
+    {
+        input_index = 0;
+    }
+    else
     {
         return similarity;
     }
-    MATRIX m = processing_data((double *)DATA.arr);
-    if (m.row == 0)
+
+    // 压缩数据并存储
+    double *temp = vertical_average((double *)input, SUM_DATA_LEN, COL);
+    double temp_sum = sum(temp, COL);
+    for (int i = 0; i < COL; i++)
+    {
+        if (temp_sum >= SUM_DATA_AVG_THRESHOLD)
+        {
+            m_50[m_50_index][i] = temp[i];
+        }
+        else
+        {
+            m_50[m_50_index][i] = 0;
+        }
+    }
+    if (++m_50_index == WINDOW_SIZE_TRAIN) // 循环索引
+    {
+        m_50_index = 0;
+    }
+    if (++m_50_size < WINDOW_SIZE_TRAIN) // 数据长度不足20条,就返回默认相似度
     {
         return similarity;
     }
-    MATRIX test = mean(m);
-    double sim[6];
-    int max = 0;
+
+    // 非零行数判断
+    int count_non_zero = count_non_zero_row((double *)m_50, WINDOW_SIZE_TRAIN, COL);
+    if (count_non_zero < WINDOW_SIZE_TRAIN * RATE_TRAIN) // 非零行数不足20%，就返回默认相似度
+    {
+        return similarity;
+    }
+
+    // 计算相似度
+    temp = vertical_average((double *)m_50, WINDOW_SIZE_TRAIN, COL);
+    double sim[6]; // 定义相似度数组
+    int max = 0;   // 最大相似度的索引
     for (int i = 0; i < 6; i++)
     {
-        double res1[COL];
+        double res1[COL]; // 临时矩阵
         for (int j = 0; j < COL; j++)
         {
-            res1[j] = res[i][j];
+            res1[j] = res[i][j]; // 将输入矩阵的每一行复制到临时矩阵中
         }
-        sim[i] = cosine_similarity(res1, test.array, COL);
+        sim[i] = cosine_similarity(res1, temp, COL); // 计算与临时矩阵的余弦相似度
         if (sim[i] > sim[max])
         {
-            max = i;
+            max = i; // 如果当前相似度大于最大相似度，则更新最大相似度的索引
         }
     }
-    similarity.action_id = max;
-    similarity.max_similarity = sim[max];
-    return similarity;
+    similarity.action_id = max;           // 将最大相似度的索引赋值给动作ID
+    similarity.max_similarity = sim[max]; // 将最大相似度赋值给最大相似度值
+    m_50_size = 0;                        // 清空m_50数组
+    return similarity;                    // 返回相似度
 }
