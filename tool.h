@@ -3,11 +3,9 @@
 
 #define SUM_DATA_LEN 50
 #define COL 8
-#define ROW 1000
 #define SUM_DATA_AVG_THRESHOLD 5000
 #define WINDOW_SIZE_TRAIN 20
 #define RATE_TRAIN 0.8
-#define TOTAL 400
 
 typedef struct similarity
 {
