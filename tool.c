@@ -2,7 +2,7 @@
 #include <math.h>
 #include "tool.h"
 
-double input[SUM_DATA_LEN][COL];     // 存储输入的数组
+double temp[COL] = {0.0};            // 临时压缩数组
 int input_index = 0;                 // 输入数组的索引
 double m_50[WINDOW_SIZE_TRAIN][COL]; // 存储压缩后的向量
 int m_50_size = 0;                   // 存储压缩后的向量的大小
@@ -99,11 +99,10 @@ int count_non_zero_row(double *arr, int row, int col)
 SIMILARITY action_test(double res[][COL], int received_data[COL])
 {
     SIMILARITY similarity = {-1, -1}; // 初始化相似度为{-1, -1}
-
     // 存储输入数据,只存储50条数据
     for (int i = 0; i < COL; i++)
     {
-        input[input_index][i] = received_data[i];
+        temp[i] += received_data[i];
     }
     if (++input_index == SUM_DATA_LEN)
     {
@@ -115,7 +114,10 @@ SIMILARITY action_test(double res[][COL], int received_data[COL])
     }
 
     // 压缩数据并存储
-    double *temp = vertical_average((double *)input, SUM_DATA_LEN, COL);
+    for (int i = 0; i < COL; i++)
+    {
+        temp[i] /= SUM_DATA_LEN;
+    }
     double temp_sum = sum(temp, COL);
     for (int i = 0; i < COL; i++)
     {
@@ -127,6 +129,7 @@ SIMILARITY action_test(double res[][COL], int received_data[COL])
         {
             m_50[m_50_index][i] = 0;
         }
+        temp[i] = 0; // 清空临时数组
     }
     if (++m_50_index == WINDOW_SIZE_TRAIN) // 循环索引
     {
@@ -145,7 +148,7 @@ SIMILARITY action_test(double res[][COL], int received_data[COL])
     }
 
     // 计算相似度
-    temp = vertical_average((double *)m_50, WINDOW_SIZE_TRAIN, COL);
+    double *temp1 = vertical_average((double *)m_50, WINDOW_SIZE_TRAIN, COL);
     double sim[6]; // 定义相似度数组
     int max = 0;   // 最大相似度的索引
     for (int i = 0; i < 6; i++)
@@ -155,7 +158,7 @@ SIMILARITY action_test(double res[][COL], int received_data[COL])
         {
             res1[j] = res[i][j]; // 将输入矩阵的每一行复制到临时矩阵中
         }
-        sim[i] = cosine_similarity(res1, temp, COL); // 计算与临时矩阵的余弦相似度
+        sim[i] = cosine_similarity(res1, temp1, COL); // 计算与临时矩阵的余弦相似度
         if (sim[i] > sim[max])
         {
             max = i; // 如果当前相似度大于最大相似度，则更新最大相似度的索引
