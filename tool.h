@@ -9,10 +9,9 @@
 
 typedef struct similarity
 {
-    int action_id;         // 动作id
-    double max_similarity; // 最大相似度
-} SIMILARITY;              // 相似度
-                   
+    int action_id;            // 动作id
+    double similarity[6]; // 相似度数组
+} SIMILARITY;                 // 相似度
 
 SIMILARITY action_test(double res[][COL], int received_data[COL]);
 

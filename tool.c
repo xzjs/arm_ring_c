@@ -98,7 +98,8 @@ int count_non_zero_row(double *arr, int row, int col)
  */
 SIMILARITY action_test(double res[][COL], int received_data[COL])
 {
-    SIMILARITY similarity = {-1, -1}; // 初始化相似度为{-1, -1}
+    SIMILARITY similarity;
+    similarity.action_id = -1;
     // 存储输入数据,只存储50条数据
     for (int i = 0; i < COL; i++)
     {
@@ -149,8 +150,8 @@ SIMILARITY action_test(double res[][COL], int received_data[COL])
 
     // 计算相似度
     double *temp1 = vertical_average((double *)m_50, WINDOW_SIZE_TRAIN, COL);
-    double sim[6]; // 定义相似度数组
-    int max = 0;   // 最大相似度的索引
+    int max = 0; // 最大相似度的索引
+    double max_sim = -1;
     for (int i = 0; i < 6; i++)
     {
         double res1[COL]; // 临时矩阵
@@ -158,14 +159,15 @@ SIMILARITY action_test(double res[][COL], int received_data[COL])
         {
             res1[j] = res[i][j]; // 将输入矩阵的每一行复制到临时矩阵中
         }
-        sim[i] = cosine_similarity(res1, temp1, COL); // 计算与临时矩阵的余弦相似度
-        if (sim[i] > sim[max])
+        double sim = cosine_similarity(res1, temp1, COL); // 计算与临时矩阵的余弦相似度
+        similarity.similarity[i] = sim; // 记录相似度
+        if (sim > max_sim)
         {
             max = i; // 如果当前相似度大于最大相似度，则更新最大相似度的索引
+            max_sim = sim;
         }
     }
-    similarity.action_id = max;           // 将最大相似度的索引赋值给动作ID
-    similarity.max_similarity = sim[max]; // 将最大相似度赋值给最大相似度值
-    m_50_size = 0;                        // 清空m_50数组
-    return similarity;                    // 返回相似度
+    similarity.action_id = max; // 将最大相似度的索引赋值给动作ID
+    m_50_size = 0;              // 清空m_50数组
+    return similarity;          // 返回相似度
 }
